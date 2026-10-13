@@ -1,5 +1,5 @@
 <?php
-$pageTitle = 'Daftar Produk';
+$pageTitle = 'Katalog Master Produk';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/auth.php';
 require_once __DIR__ . '/../../helpers/escape.php';
@@ -8,19 +8,20 @@ require_once __DIR__ . '/../../helpers/flash.php';
 
 require_login();
 
-// 1. Ambil Parameter Filter, Search, Sort & Pagination
+// 1. Ambil Parameter Filter, Search, Sort, View Mode & Pagination
 $search       = trim($_GET['search'] ?? '');
 $categoryId   = filter_input(INPUT_GET, 'category_id', FILTER_VALIDATE_INT) ?: null;
 $stockStatus  = trim($_GET['stock_status'] ?? '');
+$viewMode     = in_array($_GET['view'] ?? '', ['grid', 'table'], true) ? $_GET['view'] : 'grid';
 
-// Allowlist Sorting (Slide 16)
+// Allowlist Sorting
 $allowedSortColumns = ['name', 'sku', 'price', 'stock', 'created_at'];
 $sortColumn = validate_sort_column($_GET['sort'] ?? 'created_at', $allowedSortColumns, 'created_at');
 $sortOrder  = validate_sort_direction($_GET['order'] ?? 'DESC', 'DESC');
 
-// Pagination (Slide 17)
+// Pagination
+$perPage = ($viewMode === 'grid') ? 8 : 10;
 $page    = max(1, (int)($_GET['page'] ?? 1));
-$perPage = 8;
 $offset  = ($page - 1) * $perPage;
 
 // 2. Bangun Query WHERE secara dinamis dengan Prepared Statements
@@ -55,7 +56,7 @@ $countStmt->execute($params);
 $totalRows = (int)$countStmt->fetchColumn();
 $totalPages = (int)ceil($totalRows / $perPage);
 
-// 4. Ambil Data Produk dengan JOIN categories & agregat supplier (Slide 12 & 14)
+// 4. Ambil Data Produk dengan JOIN categories & agregat supplier
 $dataSql = "
     SELECT p.*, c.name AS category_name,
            COUNT(ps.supplier_id) AS total_suppliers
@@ -69,11 +70,9 @@ $dataSql = "
 ";
 
 $stmt = $pdo->prepare($dataSql);
-// Bind parameter pencarian
 foreach ($params as $k => $v) {
     $stmt->bindValue(':' . $k, $v);
 }
-// Bind integer limit & offset
 $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
 $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
@@ -87,32 +86,31 @@ require_once __DIR__ . '/../../views/header.php';
 
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
     <div>
-        <h3 class="fw-bold text-dark mb-1"><i class="bi bi-box-seam text-primary me-2"></i>Daftar Master Produk</h3>
-        <p class="text-muted small mb-0">Kelola informasi produk, SKU unik, stok minimum, dan keterhubungan supplier.</p>
+        <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.02em;">Katalog Master Produk</h3>
+        <p class="text-muted small mb-0">Kelola informasi produk, SKU unik, stok minimum, dan keterhubungan multi-supplier.</p>
     </div>
     <?php if (is_admin()): ?>
     <div class="mt-3 mt-md-0">
         <a href="create.php" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i> Tambah Produk Baru
+            Tambah Produk Baru
         </a>
     </div>
     <?php endif; ?>
 </div>
 
-<!-- Form Filter & Pencarian (Slide 16) -->
-<div class="card shadow-sm mb-4">
+<!-- Form Filter & Pencarian -->
+<div class="card mb-4">
     <div class="card-body p-3">
         <form method="GET" action="index.php" class="row g-2 align-items-end">
+            <input type="hidden" name="view" value="<?= e($viewMode) ?>">
+
             <div class="col-md-4">
-                <label class="form-label small fw-semibold text-secondary mb-1">Cari Nama / SKU</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                    <input type="text" name="search" class="form-control border-start-0 ps-0" placeholder="Ketik nama atau SKU..." value="<?= e($search) ?>">
-                </div>
+                <label class="form-label small text-secondary mb-1">Cari Nama / SKU</label>
+                <input type="text" name="search" class="form-control" placeholder="Ketik nama atau SKU..." value="<?= e($search) ?>">
             </div>
 
             <div class="col-md-3">
-                <label class="form-label small fw-semibold text-secondary mb-1">Kategori Produk</label>
+                <label class="form-label small text-secondary mb-1">Kategori Produk</label>
                 <select name="category_id" class="form-select">
                     <option value="">Semua Kategori</option>
                     <?php foreach ($categories as $cat): ?>
@@ -124,7 +122,7 @@ require_once __DIR__ . '/../../views/header.php';
             </div>
 
             <div class="col-md-2">
-                <label class="form-label small fw-semibold text-secondary mb-1">Status Stok</label>
+                <label class="form-label small text-secondary mb-1">Status Ketersediaan</label>
                 <select name="stock_status" class="form-select">
                     <option value="">Semua Status</option>
                     <option value="available" <?= $stockStatus === 'available' ? 'selected' : '' ?>>Tersedia Aman</option>
@@ -135,73 +133,128 @@ require_once __DIR__ . '/../../views/header.php';
 
             <div class="col-md-3 d-flex gap-2">
                 <button type="submit" class="btn btn-primary flex-grow-1">
-                    <i class="bi bi-funnel me-1"></i> Filter
+                    Terapkan Filter
                 </button>
-                <a href="index.php" class="btn btn-outline-secondary" title="Reset Filter">
-                    <i class="bi bi-arrow-counterclockwise"></i>
+                <a href="index.php?view=<?= e($viewMode) ?>" class="btn btn-outline-secondary" title="Reset Filter">
+                    Reset
                 </a>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Tabel Daftar Produk -->
-<div class="card shadow-sm">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-        <span class="fw-semibold text-muted small">
-            Menampilkan <?= count($products) ?> dari <?= $totalRows ?> total produk
-        </span>
-        <div class="d-flex align-items-center gap-2">
-            <span class="small text-muted">Urutkan:</span>
-            <?php
-            // Helper fungsi untuk link sorting
-            function sort_link($col, $label, $currentCol, $currentOrder) {
-                $newOrder = ($currentCol === $col && $currentOrder === 'ASC') ? 'DESC' : 'ASC';
-                $icon = '';
-                if ($currentCol === $col) {
-                    $icon = $currentOrder === 'ASC' ? '<i class="bi bi-sort-up text-primary"></i>' : '<i class="bi bi-sort-down text-primary"></i>';
-                }
-                $params = $_GET;
-                $params['sort'] = $col;
-                $params['order'] = $newOrder;
-                $url = '?' . http_build_query($params);
-                return "<a href='{$url}' class='text-decoration-none text-dark fw-semibold'>{$label} {$icon}</a>";
-            }
+<!-- Toolbar Tampilan & Jumlah Data -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div class="text-muted small">
+        Menampilkan <strong><?= count($products) ?></strong> dari total <strong><?= $totalRows ?></strong> produk
+    </div>
+    <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+        <span class="small text-muted me-1">Format Tampilan:</span>
+        <div class="btn-group btn-group-sm" role="group">
+            <?php 
+                $gridParams = $_GET; $gridParams['view'] = 'grid'; 
+                $tableParams = $_GET; $tableParams['view'] = 'table'; 
             ?>
+            <a href="?<?= http_build_query($gridParams) ?>" class="btn <?= $viewMode === 'grid' ? 'btn-primary' : 'btn-outline-secondary' ?>">
+                Grid Card
+            </a>
+            <a href="?<?= http_build_query($tableParams) ?>" class="btn <?= $viewMode === 'table' ? 'btn-primary' : 'btn-outline-secondary' ?>">
+                Tabel List
+            </a>
         </div>
     </div>
-    
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead>
-                <tr>
-                    <th style="width: 140px;"><?= sort_link('sku', 'SKU', $sortColumn, $sortOrder) ?></th>
-                    <th><?= sort_link('name', 'Nama Produk', $sortColumn, $sortOrder) ?></th>
-                    <th>Kategori</th>
-                    <th class="text-end"><?= sort_link('price', 'Harga Jual', $sortColumn, $sortOrder) ?></th>
-                    <th class="text-center"><?= sort_link('stock', 'Stok Saat Ini', $sortColumn, $sortOrder) ?></th>
-                    <th class="text-center">Supplier</th>
-                    <th class="text-end" style="width: 190px;">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if (empty($products)): ?>
+</div>
+
+<?php if (empty($products)): ?>
+    <div class="card p-5 text-center text-muted">
+        <h5 class="fw-bold text-dark mb-1">Tidak Ada Produk Ditemukan</h5>
+        <p class="small mb-3">Coba ubah kata kunci pencarian atau bersihkan filter yang aktif.</p>
+        <div>
+            <a href="index.php" class="btn btn-outline-secondary btn-sm">Reset Pencarian</a>
+        </div>
+    </div>
+<?php elseif ($viewMode === 'grid'): ?>
+    <!-- Mode Grid Card (Marketplace Style dengan Foto Asli Berkualitas) -->
+    <div class="row g-4 mb-4">
+        <?php foreach ($products as $p): ?>
+            <?php
+                $stockPct = ($p['minimum_stock'] > 0) ? min(100, round(($p['stock'] / ($p['minimum_stock'] * 3)) * 100)) : 100;
+                $barColor = ($p['stock'] <= 0) ? '#ef4444' : (($p['stock'] <= $p['minimum_stock']) ? '#f59e0b' : '#10b981');
+            ?>
+            <div class="col-sm-6 col-lg-4 col-xl-3">
+                <div class="product-card">
+                    <div class="product-card-img-wrap">
+                        <img src="<?= product_image_url($p['sku'], $p['name']) ?>" alt="<?= e($p['name']) ?>" loading="lazy">
+                        <div class="product-card-badge-top">
+                            <?= stock_badge((int)$p['stock'], (int)$p['minimum_stock']) ?>
+                        </div>
+                    </div>
+                    <div class="product-card-body">
+                        <div class="product-card-category"><?= e($p['category_name']) ?></div>
+                        <a href="view.php?id=<?= $p['id'] ?>" class="product-card-title text-decoration-none">
+                            <?= e($p['name']) ?>
+                        </a>
+                        <div class="product-card-sku">SKU: <?= e($p['sku']) ?></div>
+
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span>Kapasitas Stok</span>
+                                <strong class="text-dark"><?= number_format($p['stock']) ?> unit</strong>
+                            </div>
+                            <div class="stock-progress-track">
+                                <div class="stock-progress-fill" style="width: <?= $stockPct ?>%; background-color: <?= $barColor ?>;"></div>
+                            </div>
+                        </div>
+
+                        <div class="product-card-price mb-3">
+                            <?= format_currency($p['price']) ?>
+                        </div>
+
+                        <div class="d-flex gap-2 pt-2 border-top">
+                            <a href="view.php?id=<?= $p['id'] ?>" class="btn btn-outline-secondary btn-sm flex-grow-1">
+                                Detail
+                            </a>
+                            <a href="<?= base_url('public/stock/in.php?product_id=' . $p['id']) ?>" class="btn btn-outline-success btn-sm" title="Restock">
+                                + Stok
+                            </a>
+                            <?php if (is_admin()): ?>
+                            <a href="edit.php?id=<?= $p['id'] ?>" class="btn btn-outline-primary btn-sm" title="Edit">
+                                Edit
+                            </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    </div>
+<?php else: ?>
+    <!-- Mode Tabel Dense -->
+    <div class="card mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
                     <tr>
-                        <td colspan="7" class="text-center py-5 text-muted">
-                            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
-                            Tidak ada data produk yang cocok dengan pencarian / filter.
-                        </td>
+                        <th style="width: 70px;">Visual</th>
+                        <th>SKU & Nama Produk</th>
+                        <th>Kategori</th>
+                        <th class="text-end">Harga Satuan</th>
+                        <th class="text-center">Status Stok</th>
+                        <th class="text-center">Supplier</th>
+                        <th class="text-end" style="width: 170px;">Aksi</th>
                     </tr>
-                <?php else: ?>
+                </thead>
+                <tbody>
                     <?php foreach ($products as $p): ?>
                         <tr>
                             <td>
-                                <code><?= e($p['sku']) ?></code>
+                                <img src="<?= product_image_url($p['sku'], $p['name']) ?>" alt="<?= e($p['name']) ?>" class="product-avatar-sm">
                             </td>
                             <td>
-                                <a href="view.php?id=<?= $p['id'] ?>" class="fw-semibold text-decoration-none text-dark">
+                                <a href="view.php?id=<?= $p['id'] ?>" class="fw-semibold text-dark text-decoration-none d-block">
                                     <?= e($p['name']) ?>
                                 </a>
+                                <small class="text-muted font-monospace"><?= e($p['sku']) ?></small>
                             </td>
                             <td>
                                 <span class="badge bg-light text-secondary border">
@@ -213,77 +266,58 @@ require_once __DIR__ . '/../../views/header.php';
                             </td>
                             <td class="text-center">
                                 <?= stock_badge((int)$p['stock'], (int)$p['minimum_stock']) ?>
-                                <div class="text-muted" style="font-size: 0.72rem;">Min: <?= e($p['minimum_stock']) ?></div>
+                                <div class="text-muted mt-1" style="font-size: 0.72rem;">Min: <?= e($p['minimum_stock']) ?></div>
                             </td>
                             <td class="text-center">
-                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">
-                                    <i class="bi bi-truck me-1"></i><?= $p['total_suppliers'] ?> Mitra
+                                <span class="badge bg-light text-dark border">
+                                    <?= $p['total_suppliers'] ?> Mitra
                                 </span>
                             </td>
                             <td class="text-end">
                                 <div class="btn-group btn-group-sm">
-                                    <a href="view.php?id=<?= $p['id'] ?>" class="btn btn-outline-secondary" title="Detail Produk & Histori">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                    <a href="<?= base_url('public/stock/in.php?product_id=' . $p['id']) ?>" class="btn btn-outline-success" title="Tambah Stok (Barang Masuk)">
-                                        <i class="bi bi-plus-lg"></i>
-                                    </a>
+                                    <a href="view.php?id=<?= $p['id'] ?>" class="btn btn-outline-secondary">Detail</a>
+                                    <a href="<?= base_url('public/stock/in.php?product_id=' . $p['id']) ?>" class="btn btn-outline-success">+ IN</a>
                                     <?php if (is_admin()): ?>
-                                    <a href="edit.php?id=<?= $p['id'] ?>" class="btn btn-outline-primary" title="Edit Produk">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <a href="delete.php?id=<?= $p['id'] ?>" class="btn btn-outline-danger" title="Hapus Produk" onclick="return confirm('Apakah Anda yakin ingin menghapus produk ini?');">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
+                                    <a href="edit.php?id=<?= $p['id'] ?>" class="btn btn-outline-primary">Edit</a>
+                                    <a href="delete.php?id=<?= $p['id'] ?>" class="btn btn-outline-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus produk ini?');">Hapus</a>
                                     <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Pagination (Slide 17) -->
-    <?php if ($totalPages > 1): ?>
-        <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
-            <small class="text-muted">
-                Halaman <?= $page ?> dari <?= $totalPages ?>
-            </small>
-            <nav>
-                <ul class="pagination pagination-sm mb-0">
-                    <!-- Tombol Prev -->
-                    <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                        <?php 
-                        $prevParams = $_GET; 
-                        $prevParams['page'] = $page - 1; 
-                        ?>
-                        <a class="page-link" href="?<?= http_build_query($prevParams) ?>">&laquo; Prev</a>
-                    </li>
-
-                    <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                        <?php 
-                        $pageParams = $_GET; 
-                        $pageParams['page'] = $i; 
-                        ?>
-                        <li class="page-item <?= $page === $i ? 'active' : '' ?>">
-                            <a class="page-link" href="?<?= http_build_query($pageParams) ?>"><?= $i ?></a>
-                        </li>
-                    <?php endfor; ?>
-
-                    <!-- Tombol Next -->
-                    <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
-                        <?php 
-                        $nextParams = $_GET; 
-                        $nextParams['page'] = $page + 1; 
-                        ?>
-                        <a class="page-link" href="?<?= http_build_query($nextParams) ?>">Next &raquo;</a>
-                    </li>
-                </ul>
-            </nav>
+                </tbody>
+            </table>
         </div>
-    <?php endif; ?>
-</div>
+    </div>
+<?php endif; ?>
+
+<!-- Pagination -->
+<?php if ($totalPages > 1): ?>
+    <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 pt-2">
+        <small class="text-muted">
+            Halaman <?= $page ?> dari <?= $totalPages ?> (Total <?= $totalRows ?> item)
+        </small>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                    <?php $prevParams = $_GET; $prevParams['page'] = $page - 1; ?>
+                    <a class="page-link" href="?<?= http_build_query($prevParams) ?>">&laquo; Sebelumnya</a>
+                </li>
+
+                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                    <?php $pageParams = $_GET; $pageParams['page'] = $i; ?>
+                    <li class="page-item <?= $page === $i ? 'active' : '' ?>">
+                        <a class="page-link" href="?<?= http_build_query($pageParams) ?>"><?= $i ?></a>
+                    </li>
+                <?php endfor; ?>
+
+                <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                    <?php $nextParams = $_GET; $nextParams['page'] = $page + 1; ?>
+                    <a class="page-link" href="?<?= http_build_query($nextParams) ?>">Selanjutnya &raquo;</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/../../views/footer.php'; ?>

@@ -30,7 +30,7 @@ if (!$product) {
 $categories = $pdo->query("SELECT id, name FROM categories ORDER BY name ASC")->fetchAll();
 $allSuppliers = $pdo->query("SELECT id, name FROM suppliers ORDER BY name ASC")->fetchAll();
 
-// Ambil supplier yang sudah terhubung dengan produk ini saat ini
+// Ambil supplier yang sudah terhubung dengan produk ini
 $psStmt = $pdo->prepare("SELECT supplier_id, supplier_price FROM product_suppliers WHERE product_id = :pid");
 $psStmt->execute(['pid' => $id]);
 $connectedSuppliers = [];
@@ -45,78 +45,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Sesi form telah kedaluwarsa. Silakan refresh halaman dan coba lagi.';
     } else {
         $sku          = strtoupper(trim($_POST['sku'] ?? ''));
-    $name         = trim($_POST['name'] ?? '');
-    $categoryId   = filter_input(INPUT_POST, 'category_id', FILTER_VALIDATE_INT);
-    $priceInput   = $_POST['price'] ?? '';
-    $minStockIn   = $_POST['minimum_stock'] ?? '5';
-    $supplierData = $_POST['suppliers'] ?? []; // array of supplier IDs
-    $pricesData   = $_POST['supplier_prices'] ?? [];
+        $name         = trim($_POST['name'] ?? '');
+        $categoryId   = filter_input(INPUT_POST, 'category_id', FILTER_VALIDATE_INT);
+        $priceInput   = $_POST['price'] ?? '';
+        $minStockIn   = $_POST['minimum_stock'] ?? '5';
+        $supplierData = $_POST['suppliers'] ?? [];
+        $pricesData   = $_POST['supplier_prices'] ?? [];
 
-    validate_sku_unique($pdo, $sku, $id, $errors);
-    validate_string_required($name, 'Nama Produk', 150, $errors);
+        validate_sku_unique($pdo, $sku, $id, $errors);
+        validate_string_required($name, 'Nama Produk', 150, $errors);
 
-    if (!$categoryId) {
-        $errors[] = 'Kategori produk wajib dipilih.';
-    }
+        if (!$categoryId) {
+            $errors[] = 'Kategori produk wajib dipilih.';
+        }
 
-    $validPrice = validate_currency_amount($priceInput, 'Harga Jual', $errors);
-    $validMinStock = validate_non_negative_int($minStockIn, 'Stok Minimum', $errors);
+        $validPrice = validate_currency_amount($priceInput, 'Harga Jual', $errors);
+        $validMinStock = validate_non_negative_int($minStockIn, 'Stok Minimum', $errors);
 
-    if (empty($errors)) {
-        try {
-            $pdo->beginTransaction();
+        if (empty($errors)) {
+            try {
+                $pdo->beginTransaction();
 
-            // 1. Update data pokok produk
-            $updateStmt = $pdo->prepare("
-                UPDATE products
-                SET category_id = :category_id,
-                    sku = :sku,
-                    name = :name,
-                    price = :price,
-                    minimum_stock = :minimum_stock
-                WHERE id = :id
-            ");
-            $updateStmt->execute([
-                'category_id'   => $categoryId,
-                'sku'           => $sku,
-                'name'          => $name,
-                'price'         => $validPrice,
-                'minimum_stock' => $validMinStock,
-                'id'            => $id,
-            ]);
-
-            // 2. Sinkronisasi many-to-many product_suppliers
-            // Hapus relasi lama lalu pasang relasi baru
-            $delPs = $pdo->prepare("DELETE FROM product_suppliers WHERE product_id = :pid");
-            $delPs->execute(['pid' => $id]);
-
-            if (!empty($supplierData)) {
-                $insPs = $pdo->prepare("
-                    INSERT INTO product_suppliers (product_id, supplier_id, supplier_price)
-                    VALUES (:pid, :sid, :sprice)
+                // 1. Update data pokok produk
+                $updateStmt = $pdo->prepare("
+                    UPDATE products
+                    SET category_id = :category_id,
+                        sku = :sku,
+                        name = :name,
+                        price = :price,
+                        minimum_stock = :minimum_stock
+                    WHERE id = :id
                 ");
-                foreach ($supplierData as $supId) {
-                    $supId = (int)$supId;
-                    $supPrice = !empty($pricesData[$supId]) ? (float)$pricesData[$supId] : null;
-                    $insPs->execute([
-                        'pid'    => $id,
-                        'sid'    => $supId,
-                        'sprice' => $supPrice,
-                    ]);
+                $updateStmt->execute([
+                    'category_id'   => $categoryId,
+                    'sku'           => $sku,
+                    'name'          => $name,
+                    'price'         => $validPrice,
+                    'minimum_stock' => $validMinStock,
+                    'id'            => $id,
+                ]);
+
+                // 2. Sinkronisasi many-to-many product_suppliers
+                $delPs = $pdo->prepare("DELETE FROM product_suppliers WHERE product_id = :pid");
+                $delPs->execute(['pid' => $id]);
+
+                if (!empty($supplierData)) {
+                    $insPs = $pdo->prepare("
+                        INSERT INTO product_suppliers (product_id, supplier_id, supplier_price)
+                        VALUES (:pid, :sid, :sprice)
+                    ");
+                    foreach ($supplierData as $supId) {
+                        $supId = (int)$supId;
+                        $supPrice = !empty($pricesData[$supId]) ? (float)$pricesData[$supId] : null;
+                        $insPs->execute([
+                            'pid'    => $id,
+                            'sid'    => $supId,
+                            'sprice' => $supPrice,
+                        ]);
+                    }
                 }
+
+                $pdo->commit();
+                set_flash('success', "Data produk '{$name}' berhasil diperbarui.");
+                header("Location: view.php?id=" . $id);
+                exit;
+
+            } catch (Throwable $e) {
+                $pdo->rollBack();
+                $errors[] = 'Gagal memperbarui data: ' . $e->getMessage();
             }
-
-            $pdo->commit();
-            set_flash('success', "Data produk '{$name}' berhasil diperbarui.");
-            header("Location: view.php?id=" . $id);
-            exit;
-
-        } catch (Throwable $e) {
-            $pdo->rollBack();
-            $errors[] = 'Gagal memperbarui data: ' . $e->getMessage();
         }
     }
-}
 } else {
     $sku        = $product['sku'];
     $name       = $product['name'];
@@ -128,23 +127,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once __DIR__ . '/../../views/header.php';
 ?>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="d-flex align-items-center">
-            <a href="index.php" class="btn btn-outline-secondary btn-sm me-3">
-                <i class="bi bi-arrow-left"></i> Kembali
-            </a>
-            <div>
-                <h3 class="fw-bold text-dark mb-0">Edit Produk: <?= e($product['name']) ?></h3>
-                <small class="text-muted">Perbarui data produk, kategori, dan keterhubungan supplier</small>
-            </div>
-        </div>
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="index.php" class="btn btn-outline-secondary btn-sm">
+        &larr; Kembali
+    </a>
+    <div>
+        <h3 class="fw-bold text-dark mb-0" style="letter-spacing: -0.02em;">Edit Produk: <?= e($product['name']) ?></h3>
+        <p class="text-muted small mb-0">Perbarui master data produk, kategori, dan keterhubungan supplier</p>
     </div>
 </div>
 
 <?php if (!empty($errors)): ?>
-    <div class="alert alert-danger border-0 shadow-sm" role="alert">
-        <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-circle me-1"></i> Terdapat kesalahan pada formulir:</h6>
+    <div class="alert alert-danger border-0 shadow-sm mb-4" role="alert">
+        <div class="fw-bold mb-1">Terdapat kesalahan pada formulir:</div>
         <ul class="mb-0 ps-3">
             <?php foreach ($errors as $err): ?>
                 <li><?= e($err) ?></li>
@@ -158,19 +153,19 @@ require_once __DIR__ . '/../../views/header.php';
     <div class="row g-4">
         <!-- Kolom Informasi Produk -->
         <div class="col-lg-7">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0 fw-bold"><i class="bi bi-pencil-square text-primary me-2"></i>Data Pokok Produk</h5>
+            <div class="card h-100">
+                <div class="card-header">
+                    <span class="fw-bold text-dark">Data Pokok Produk</span>
                 </div>
                 <div class="card-body p-4">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold text-secondary small">SKU Produk <span class="text-danger">*</span></label>
+                            <label class="form-label">SKU Produk <span class="text-danger">*</span></label>
                             <input type="text" name="sku" class="form-control" value="<?= e($sku) ?>" required>
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold text-secondary small">Kategori Produk <span class="text-danger">*</span></label>
+                            <label class="form-label">Kategori Produk <span class="text-danger">*</span></label>
                             <select name="category_id" class="form-select" required>
                                 <?php foreach ($categories as $cat): ?>
                                     <option value="<?= $cat['id'] ?>" <?= $categoryId == $cat['id'] ? 'selected' : '' ?>>
@@ -181,23 +176,23 @@ require_once __DIR__ . '/../../views/header.php';
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label fw-semibold text-secondary small">Nama Produk <span class="text-danger">*</span></label>
+                            <label class="form-label">Nama Produk <span class="text-danger">*</span></label>
                             <input type="text" name="name" class="form-control" value="<?= e($name) ?>" required>
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold text-secondary small">Harga Jual (Rp) <span class="text-danger">*</span></label>
+                            <label class="form-label">Harga Jual (Rp) <span class="text-danger">*</span></label>
                             <input type="number" step="1000" min="0" name="price" class="form-control" value="<?= e($price) ?>" required>
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold text-secondary small">Stok Saat Ini (Terkunci)</label>
-                            <input type="text" class="form-control bg-light" value="<?= e($product['stock']) ?>" disabled>
-                            <div class="form-text">Stok hanya dapat diubah melalui menu Transaksi Masuk/Keluar.</div>
+                            <label class="form-label">Stok Fisik (Terkunci)</label>
+                            <input type="text" class="form-control bg-light" value="<?= e($product['stock']) ?> unit" disabled>
+                            <div class="form-text">Ubah melalui transaksi mutasi.</div>
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold text-secondary small">Batas Stok Minimum</label>
+                            <label class="form-label">Batas Stok Minimum</label>
                             <input type="number" min="0" name="minimum_stock" class="form-control" value="<?= e($minStock) ?>">
                         </div>
                     </div>
@@ -207,13 +202,13 @@ require_once __DIR__ . '/../../views/header.php';
 
         <!-- Kolom Relasi Many-to-Many Supplier -->
         <div class="col-lg-5">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0 fw-bold"><i class="bi bi-truck text-primary me-2"></i>Pemasok Terkait (Many-to-Many)</h5>
+            <div class="card h-100">
+                <div class="card-header">
+                    <span class="fw-bold text-dark">Pemasok Terkait (Many-to-Many)</span>
                 </div>
                 <div class="card-body p-4">
                     <p class="small text-muted mb-3">
-                        Pilih supplier mitra dan sesuaikan estimasi harga beli kulakan dari supplier tersebut.
+                        Sesuaikan mitra pemasok dan harga kulakan dari supplier tersebut.
                     </p>
 
                     <div class="d-flex flex-column gap-3">
@@ -222,7 +217,7 @@ require_once __DIR__ . '/../../views/header.php';
                             $isChecked = array_key_exists($sup['id'], $connectedSuppliers);
                             $supPriceVal = $isChecked ? $connectedSuppliers[$sup['id']] : '';
                             ?>
-                            <div class="p-3 border rounded-3 bg-light-subtle">
+                            <div class="p-3 border rounded-3 bg-light">
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" name="suppliers[]" value="<?= $sup['id'] ?>" id="sup_<?= $sup['id'] ?>" <?= $isChecked ? 'checked' : '' ?>>
                                     <label class="form-check-label fw-semibold text-dark" for="sup_<?= $sup['id'] ?>">
@@ -237,9 +232,9 @@ require_once __DIR__ . '/../../views/header.php';
                         <?php endforeach; ?>
                     </div>
                 </div>
-                <div class="card-footer bg-white p-3 text-end">
+                <div class="card-footer text-end">
                     <button type="submit" class="btn btn-primary px-4">
-                        <i class="bi bi-save me-1"></i> Simpan Perubahan
+                        Simpan Perubahan
                     </button>
                 </div>
             </div>

@@ -1,5 +1,5 @@
 <?php
-$pageTitle = 'Tambah Supplier Baru';
+$pageTitle = 'Tambah Mitra Supplier';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/auth.php';
 require_once __DIR__ . '/../../helpers/escape.php';
@@ -54,23 +54,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once __DIR__ . '/../../views/header.php';
 ?>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="d-flex align-items-center">
-            <a href="index.php" class="btn btn-outline-secondary btn-sm me-3">
-                <i class="bi bi-arrow-left"></i> Kembali
-            </a>
-            <div>
-                <h3 class="fw-bold text-dark mb-0">Tambah Mitra Pemasok (Supplier)</h3>
-                <small class="text-muted">Daftarkan vendor atau penyedia produk barang</small>
-            </div>
-        </div>
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="index.php" class="btn btn-outline-secondary btn-sm">
+        &larr; Kembali
+    </a>
+    <div>
+        <h3 class="fw-bold text-dark mb-0" style="letter-spacing: -0.02em;">Tambah Mitra Pemasok (Supplier)</h3>
+        <p class="text-muted small mb-0">Daftarkan vendor atau penyedia produk barang inventaris</p>
     </div>
 </div>
 
 <?php if (!empty($errors)): ?>
-    <div class="alert alert-danger border-0 shadow-sm" role="alert">
-        <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-circle me-1"></i> Terjadi kesalahan:</h6>
+    <div class="alert alert-danger border-0 shadow-sm mb-4" role="alert">
+        <div class="fw-bold mb-1">Terjadi kesalahan:</div>
         <ul class="mb-0 ps-3">
             <?php foreach ($errors as $err): ?>
                 <li><?= e($err) ?></li>
@@ -81,38 +77,41 @@ require_once __DIR__ . '/../../views/header.php';
 
 <div class="row">
     <div class="col-lg-7">
-        <div class="card shadow-sm">
+        <div class="card">
+            <div class="card-header">
+                <span class="fw-bold text-dark">Formulir Data Vendor</span>
+            </div>
             <div class="card-body p-4">
                 <form method="POST" action="create.php">
                     <?= csrf_field() ?>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold text-secondary small">Nama Perusahaan / Supplier <span class="text-danger">*</span></label>
+                        <label class="form-label">Nama Perusahaan / Supplier <span class="text-danger">*</span></label>
                         <input type="text" name="name" class="form-control" value="<?= e($name) ?>" placeholder="Contoh: PT Sumber Rezeki Sentosa" required autofocus>
                     </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold text-secondary small">Nama PIC / Kontak Person</label>
+                            <label class="form-label">Nama PIC / Kontak Person</label>
                             <input type="text" name="contact_name" class="form-control" value="<?= e($contactName) ?>" placeholder="Contoh: Budi Gunawan">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold text-secondary small">Nomor Telepon</label>
+                            <label class="form-label">Nomor Telepon</label>
                             <input type="text" name="phone" class="form-control" value="<?= e($phone) ?>" placeholder="Contoh: 021-1234567">
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold text-secondary small">Email Resmi</label>
+                        <label class="form-label">Email Resmi</label>
                         <input type="email" name="email" class="form-control" value="<?= e($email) ?>" placeholder="Contoh: sales@sumberrezeki.co.id">
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-semibold text-secondary small">Alamat Kantor / Gudang</label>
+                        <label class="form-label">Alamat Kantor / Gudang</label>
                         <textarea name="address" rows="3" class="form-control" placeholder="Alamat lengkap supplier"><?= e($address) ?></textarea>
                     </div>
 
                     <button type="submit" class="btn btn-primary px-4">
-                        <i class="bi bi-save me-1"></i> Simpan Supplier
+                        Simpan Supplier
                     </button>
                 </form>
             </div>

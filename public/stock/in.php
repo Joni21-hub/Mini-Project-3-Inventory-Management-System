@@ -7,7 +7,6 @@ require_once __DIR__ . '/../../helpers/validation.php';
 require_once __DIR__ . '/../../helpers/flash.php';
 require_once __DIR__ . '/../../helpers/csrf.php';
 
-// Baik admin maupun staff dapat mencatat transaksi (Slide 24)
 require_login();
 
 $preselectedProductId = filter_input(INPUT_GET, 'product_id', FILTER_VALIDATE_INT);
@@ -37,12 +36,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Silakan pilih produk yang akan ditambahkan.';
         }
 
-        // Validasi syntactic: jumlah harus berupa integer positif (Slide 21)
         $validQty = validate_positive_int($qtyInput, 'Jumlah Masuk (Quantity)', $errors);
 
         if (empty($errors)) {
             try {
-                // DATABASE TRANSACTION (Slide 25 & 27)
                 $pdo->beginTransaction();
 
                 // 1. Verifikasi eksistensi produk
@@ -77,7 +74,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'notes' => $notes ?: 'Penerimaan barang masuk (Restock)',
                 ]);
 
-                // Komit transaksi
                 $pdo->commit();
 
                 $newStock = $prod['stock'] + $validQty;
@@ -96,23 +92,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once __DIR__ . '/../../views/header.php';
 ?>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="d-flex align-items-center">
-            <a href="<?= base_url('public/dashboard.php') ?>" class="btn btn-outline-secondary btn-sm me-3">
-                <i class="bi bi-arrow-left"></i> Dashboard
-            </a>
-            <div>
-                <h3 class="fw-bold text-dark mb-0">Transaksi Barang Masuk (Stock IN)</h3>
-                <small class="text-muted">Proses penambahan kuantitas stok produk ke gudang secara aman dengan transaksi atomik</small>
-            </div>
-        </div>
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="<?= base_url('public/dashboard.php') ?>" class="btn btn-outline-secondary btn-sm">
+        &larr; Dashboard
+    </a>
+    <div>
+        <h3 class="fw-bold text-dark mb-0" style="letter-spacing: -0.02em;">Penerimaan Barang Masuk (Stock IN)</h3>
+        <p class="text-muted small mb-0">Catat pasokan barang dari supplier ke gudang dengan verifikasi transaksi atomik</p>
     </div>
 </div>
 
 <?php if (!empty($errors)): ?>
-    <div class="alert alert-danger border-0 shadow-sm" role="alert">
-        <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-circle me-1"></i> Transaksi Tidak Dapat Diproses:</h6>
+    <div class="alert alert-danger border-0 shadow-sm mb-4" role="alert">
+        <div class="fw-bold mb-1">Transaksi Tidak Dapat Diproses:</div>
         <ul class="mb-0 ps-3">
             <?php foreach ($errors as $err): ?>
                 <li><?= e($err) ?></li>
@@ -123,57 +115,63 @@ require_once __DIR__ . '/../../views/header.php';
 
 <div class="row g-4">
     <div class="col-lg-7">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white py-3">
-                <h5 class="card-title mb-0 fw-bold text-success">
-                    <i class="bi bi-arrow-down-circle text-success me-2"></i>Formulir Barang Masuk
-                </h5>
+        <div class="card h-100">
+            <div class="card-header">
+                <div>
+                    <span class="fw-bold text-dark">Formulir Barang Masuk</span>
+                </div>
+                <span class="stock-pill stock-pill-success"><span class="stock-dot"></span>Modul Restock</span>
             </div>
             <div class="card-body p-4">
                 <form method="POST" action="in.php" id="stockInForm">
                     <?= csrf_field() ?>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold text-secondary small">Pilih Produk <span class="text-danger">*</span></label>
+                        <label class="form-label">Pilih Produk Inventaris <span class="text-danger">*</span></label>
                         <select name="product_id" id="product_id" class="form-select" required onchange="updateStockInfo()">
                             <option value="">-- Pilih Produk Inventaris --</option>
                             <?php foreach ($products as $p): ?>
-                                <option value="<?= $p['id'] ?>" data-stock="<?= $p['stock'] ?>" data-min="<?= $p['minimum_stock'] ?>" data-sku="<?= e($p['sku']) ?>" <?= $productId == $p['id'] ? 'selected' : '' ?>>
+                                <option value="<?= $p['id'] ?>" data-stock="<?= $p['stock'] ?>" data-min="<?= $p['minimum_stock'] ?>" data-sku="<?= e($p['sku']) ?>" data-img="<?= product_image_url($p['sku'], $p['name']) ?>" <?= $productId == $p['id'] ? 'selected' : '' ?>>
                                     [<?= e($p['sku']) ?>] <?= e($p['name']) ?> (Stok saat ini: <?= $p['stock'] ?> unit)
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <div class="form-text">Pilih barang yang diterima dari supplier atau pengadaan baru.</div>
+                        <div class="form-text">Pilih barang yang diterima dari vendor atau pembelian baru.</div>
                     </div>
 
-                    <!-- Panel Interaktif Live Stock Preview -->
-                    <div id="stockPreviewCard" class="alert alert-light border d-none mb-3 py-2 px-3 small">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span>Sisa Stok Fisik Saat Ini:</span>
-                            <span id="currentStockDisplay" class="fw-bold text-dark">-</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span>Estimasi Stok Setelah Transaksi:</span>
-                            <span id="projectedStockDisplay" class="fw-bold text-success">-</span>
+                    <!-- Panel Live Preview Produk & Estimasi Stok -->
+                    <div id="stockPreviewCard" class="card border p-3 d-none mb-3 bg-light">
+                        <div class="d-flex align-items-center gap-3">
+                            <img id="previewImg" src="" alt="Produk" class="product-avatar-sm" style="width: 50px; height: 50px;">
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span class="text-muted">Stok Fisik Saat Ini:</span>
+                                    <strong id="currentStockDisplay" class="text-dark">-</strong>
+                                </div>
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-muted">Proyeksi Stok Akhir:</span>
+                                    <strong id="projectedStockDisplay" class="text-success">-</strong>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold text-secondary small">Jumlah Unit Masuk (Quantity) <span class="text-danger">*</span></label>
-                        <input type="number" min="1" step="1" name="quantity" id="quantityInput" class="form-control" value="<?= e($quantity) ?>" placeholder="Masukkan jumlah unit (min. 1)" required oninput="calculateProjectedStock()">
-                        <div class="form-text">Angka bulat positif lebih dari 0.</div>
+                        <label class="form-label">Jumlah Unit Masuk (Quantity) <span class="text-danger">*</span></label>
+                        <input type="number" min="1" step="1" name="quantity" id="quantityInput" class="form-control" value="<?= e($quantity) ?>" placeholder="Contoh: 10" required oninput="calculateProjectedStock()">
+                        <div class="form-text">Kuantitas bulat positif minimal 1 unit.</div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-semibold text-secondary small">Catatan / Referensi Surat Jalan / Supplier</label>
-                        <textarea name="notes" rows="3" class="form-control" placeholder="Contoh: Penerimaan PO #8892 dari PT Nusantara Komputindo"><?= e($notes) ?></textarea>
+                        <label class="form-label">Catatan / Surat Jalan / Asal Supplier</label>
+                        <textarea name="notes" rows="3" class="form-control" placeholder="Contoh: Pengadaan PO #8892 dari PT Nusantara Komputindo"><?= e($notes) ?></textarea>
                     </div>
 
-                    <div class="d-flex justify-content-between align-items-center">
-                        <button type="submit" class="btn btn-success px-4 py-2 fw-semibold">
-                            <i class="bi bi-check2-circle me-1"></i> Simpan Transaksi Barang Masuk
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <button type="submit" class="btn btn-success px-4 py-2">
+                            Simpan Transaksi Masuk
                         </button>
-                        <a href="history.php" class="text-decoration-none text-muted small">Lihat Riwayat Mutasi &raquo;</a>
+                        <a href="history.php" class="text-decoration-none text-muted small">Lihat Riwayat &rarr;</a>
                     </div>
                 </form>
             </div>
@@ -182,35 +180,34 @@ require_once __DIR__ . '/../../views/header.php';
 
     <!-- Panel Informasi Aturan Bisnis -->
     <div class="col-lg-5">
-        <div class="card shadow-sm border-start border-success border-4 h-100">
+        <div class="card h-100">
+            <div class="card-header">
+                <span class="fw-bold text-dark">Logika Bisnis & Transaksi</span>
+            </div>
             <div class="card-body p-4">
-                <h5 class="fw-bold text-dark mb-3"><i class="bi bi-shield-check text-success me-2"></i>Business Logic: Barang Masuk (Slide 25)</h5>
-                <ul class="list-unstyled small text-muted d-flex flex-column gap-2 mb-4">
-                    <li class="d-flex align-items-start">
-                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
-                        <span>Validasi input: <code>product_id</code> valid dan <code>quantity &gt; 0</code>.</span>
-                    </li>
-                    <li class="d-flex align-items-start">
-                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
-                        <span>Menambah kolom stok pada tabel <code>products</code>.</span>
-                    </li>
-                    <li class="d-flex align-items-start">
-                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
-                        <span>Merekam audit trail transaksi mutasi (type: <code>IN</code>) pada tabel <code>stock_movements</code>.</span>
-                    </li>
-                    <li class="d-flex align-items-start">
-                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
-                        <span>Menyimpan ID user petugas yang sedang aktif login.</span>
-                    </li>
-                    <li class="d-flex align-items-start">
-                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
-                        <span>Menerapkan <strong>Database Transaction</strong>: Jika satu query gagal, seluruh proses dibatalkan (*Rollback*).</span>
-                    </li>
-                </ul>
+                <div class="d-flex flex-column gap-3 small text-muted mb-4">
+                    <div class="d-flex gap-2">
+                        <span class="stock-dot mt-1" style="background-color: #10b981;"></span>
+                        <div><strong>Validasi Syntactic:</strong> <code>quantity &gt; 0</code> dan verifikasi ID produk terdaftar.</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <span class="stock-dot mt-1" style="background-color: #10b981;"></span>
+                        <div><strong>Inkrementasi Stok:</strong> Nilai stok produk bertambah secara atomik di tabel <code>products</code>.</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <span class="stock-dot mt-1" style="background-color: #10b981;"></span>
+                        <div><strong>Audit Trail Mutasi:</strong> Rekam riwayat mutasi tipe <code>IN</code> bersama ID petugas aktif.</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <span class="stock-dot mt-1" style="background-color: #10b981;"></span>
+                        <div><strong>Kepatuhan ACID:</strong> Jika terjadi galat, seluruh kueri dibatalkan secara rollback.</div>
+                    </div>
+                </div>
 
                 <div class="p-3 bg-light rounded-3 small">
-                    <strong>Petugas Aktif:</strong><br>
-                    <?= e(current_user()['full_name'] ?: current_user()['username']) ?> (Role: <?= strtoupper(current_user()['role']) ?>)
+                    <div class="text-muted">Petugas Bertanggung Jawab:</div>
+                    <strong class="text-dark"><?= e(current_user()['full_name'] ?: current_user()['username']) ?></strong>
+                    <span class="role-pill <?= is_admin() ? 'role-pill-admin' : 'role-pill-staff' ?> ms-2"><?= strtoupper(current_user()['role']) ?></span>
                 </div>
             </div>
         </div>
@@ -223,10 +220,13 @@ function updateStockInfo() {
     const selectedOption = select.options[select.selectedIndex];
     const previewCard = document.getElementById('stockPreviewCard');
     const currentStockDisplay = document.getElementById('currentStockDisplay');
+    const previewImg = document.getElementById('previewImg');
 
     if (select.value) {
         const stock = parseInt(selectedOption.getAttribute('data-stock') || '0', 10);
+        const imgSrc = selectedOption.getAttribute('data-img') || '';
         currentStockDisplay.textContent = stock + ' unit';
+        previewImg.src = imgSrc;
         previewCard.classList.remove('d-none');
         calculateProjectedStock();
     } else {
@@ -244,7 +244,7 @@ function calculateProjectedStock() {
         const stock = parseInt(selectedOption.getAttribute('data-stock') || '0', 10);
         const qty = parseInt(qtyInput.value || '0', 10);
         const total = stock + (qty > 0 ? qty : 0);
-        projectedStockDisplay.textContent = total + ' unit (+' + qty + ')';
+        projectedStockDisplay.textContent = total + ' unit (+' + (qty > 0 ? qty : 0) + ')';
     }
 }
 

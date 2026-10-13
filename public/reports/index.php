@@ -1,5 +1,5 @@
 <?php
-$pageTitle = 'Laporan Inventory & Agregasi Data';
+$pageTitle = 'Laporan Valuasi & Analisis Agregat';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/auth.php';
 require_once __DIR__ . '/../../helpers/escape.php';
@@ -45,7 +45,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     exit;
 }
 
-// 1. Query Laporan Mutasi & Keseimbangan Stok Per Produk (Slide 28)
+// 1. Query Laporan Mutasi & Keseimbangan Stok Per Produk
 $stockReportSql = "
     SELECT p.id, p.sku, p.name, p.price, p.stock, p.minimum_stock,
            c.name AS category_name,
@@ -59,7 +59,7 @@ $stockReportSql = "
 ";
 $stockReports = $pdo->query($stockReportSql)->fetchAll();
 
-// 2. Query Laporan Ringkasan Per Kategori Menggunakan Aggregate & GROUP BY (Slide 14)
+// 2. Query Laporan Ringkasan Per Kategori Menggunakan Aggregate & GROUP BY
 $categoryReportSql = "
     SELECT c.name AS category_name,
            COUNT(p.id) AS total_products,
@@ -91,76 +91,78 @@ require_once __DIR__ . '/../../views/header.php';
 
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
     <div>
-        <h3 class="fw-bold text-dark mb-1"><i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>Laporan Inventory & Analisis Agregat</h3>
-        <p class="text-muted small mb-0">Implementasi query agregasi (COUNT, SUM, AVG) dan audit saldo pergerakan stok (Slide 14 & 28).</p>
+        <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.02em;">Laporan Eksekutif & Analisis Agregat</h3>
+        <p class="text-muted small mb-0">Audit saldo mutasi persediaan, agregasi finansial, dan valuasi aset fisik gudang.</p>
     </div>
     <div class="d-flex gap-2 mt-3 mt-md-0">
         <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-printer me-1"></i> Cetak Laporan
+            Cetak Laporan
         </button>
         <a href="index.php?export=csv" class="btn btn-outline-success btn-sm">
-            <i class="bi bi-file-earmark-excel me-1"></i> Ekspor ke CSV / Excel
+            Ekspor ke CSV / Excel
         </a>
     </div>
 </div>
 
-<!-- Kartu Ringkasan Akumulasi -->
+<!-- Kartu Ringkasan Akumulasi Metrik -->
 <div class="row g-3 mb-4">
     <div class="col-md-3">
-        <div class="card p-3 shadow-sm border-0 bg-white">
-            <small class="text-muted text-uppercase fw-semibold">Total Unit Masuk (IN)</small>
-            <div class="h3 fw-bold text-success my-1">+<?= number_format($grandTotalIn) ?></div>
-            <small class="text-muted">Dari semua supplier & restock</small>
+        <div class="stat-card stat-card-success h-100">
+            <div class="stat-card-label">Total Unit Masuk (IN)</div>
+            <div class="stat-card-value text-success">+<?= number_format($grandTotalIn) ?></div>
+            <div class="stat-card-sub text-muted">Akumulasi pasokan vendor</div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card p-3 shadow-sm border-0 bg-white">
-            <small class="text-muted text-uppercase fw-semibold">Total Unit Keluar (OUT)</small>
-            <div class="h3 fw-bold text-danger my-1">-<?= number_format($grandTotalOut) ?></div>
-            <small class="text-muted">Distribusi divisi & penjualan</small>
+        <div class="stat-card stat-card-danger h-100">
+            <div class="stat-card-label">Total Unit Keluar (OUT)</div>
+            <div class="stat-card-value text-danger">-<?= number_format($grandTotalOut) ?></div>
+            <div class="stat-card-sub text-muted">Akumulasi distribusi pemakaian</div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card p-3 shadow-sm border-0 bg-white">
-            <small class="text-muted text-uppercase fw-semibold">Saldo Unit Tersedia</small>
-            <div class="h3 fw-bold text-primary my-1"><?= number_format($grandTotalStock) ?></div>
-            <small class="text-muted">Kapasitas stok fisik gudang</small>
+        <div class="stat-card stat-card-primary h-100">
+            <div class="stat-card-label">Saldo Fisik Tersedia</div>
+            <div class="stat-card-value text-primary"><?= number_format($grandTotalStock) ?></div>
+            <div class="stat-card-sub text-muted">Kuantitas aktif di gudang</div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card p-3 shadow-sm border-0 bg-white">
-            <small class="text-muted text-uppercase fw-semibold">Total Valuasi Nilai Stok</small>
-            <div class="h4 fw-bold text-dark my-1"><?= format_currency($totalValuation) ?></div>
-            <small class="text-muted">SUM(stock &times; price)</small>
+        <div class="stat-card stat-card-info h-100">
+            <div class="stat-card-label">Total Valuasi Nilai Stok</div>
+            <div class="stat-card-value" style="font-size: 1.4rem; padding-top:0.25rem;"><?= format_currency($totalValuation) ?></div>
+            <div class="stat-card-sub text-muted">Akumulasi aset persediaan</div>
         </div>
     </div>
 </div>
 
-<!-- Laporan 1: Pergerakan & Saldo Inventaris Produk (Slide 28) -->
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-white py-3">
-        <h5 class="card-title mb-0 fw-bold">
-            <i class="bi bi-table text-primary me-2"></i>Laporan Pergerakan & Valuasi Stok Produk (Slide 28 Query)
-        </h5>
+<!-- Laporan 1: Pergerakan & Saldo Inventaris Produk -->
+<div class="card mb-4">
+    <div class="card-header">
+        <div>
+            <div class="fw-bold text-dark">Laporan Pergerakan & Valuasi Stok Produk</div>
+            <small class="text-muted">Rincian saldo mutasi IN/OUT dan valuasi per katalog SKU</small>
+        </div>
+        <span class="badge bg-light text-secondary border"><?= count($stockReports) ?> Item Terdata</span>
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
-                    <th>SKU</th>
+                    <th style="width: 140px;">SKU</th>
                     <th>Nama Produk</th>
                     <th>Kategori</th>
-                    <th class="text-center text-success">Total IN</th>
-                    <th class="text-center text-danger">Total OUT</th>
+                    <th class="text-center">Total IN</th>
+                    <th class="text-center">Total OUT</th>
                     <th class="text-center">Sisa Stok</th>
                     <th class="text-end">Harga Jual</th>
-                    <th class="text-end">Total Nilai Aset</th>
+                    <th class="text-end">Nilai Persediaan</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($stockReports as $row): ?>
                     <tr>
-                        <td><code><?= e($row['sku']) ?></code></td>
+                        <td><code class="text-secondary"><?= e($row['sku']) ?></code></td>
                         <td>
                             <a href="<?= base_url('public/products/view.php?id=' . $row['id']) ?>" class="fw-semibold text-dark text-decoration-none">
                                 <?= e($row['name']) ?>
@@ -169,10 +171,10 @@ require_once __DIR__ . '/../../views/header.php';
                         <td>
                             <span class="badge bg-light text-secondary border"><?= e($row['category_name']) ?></span>
                         </td>
-                        <td class="text-center fw-bold text-success">
+                        <td class="text-center fw-semibold text-success">
                             +<?= number_format($row['total_in']) ?>
                         </td>
-                        <td class="text-center fw-bold text-danger">
+                        <td class="text-center fw-semibold text-danger">
                             -<?= number_format($row['total_out']) ?>
                         </td>
                         <td class="text-center">
@@ -194,28 +196,29 @@ require_once __DIR__ . '/../../views/header.php';
                     <td class="text-center text-danger">-<?= number_format($grandTotalOut) ?></td>
                     <td class="text-center"><?= number_format($grandTotalStock) ?> unit</td>
                     <td></td>
-                    <td class="text-end text-primary"><?= format_currency($totalValuation) ?></td>
+                    <td class="text-end text-primary fs-6"><?= format_currency($totalValuation) ?></td>
                 </tr>
             </tfoot>
         </table>
     </div>
 </div>
 
-<!-- Laporan 2: Ringkasan Kategori Menggunakan GROUP BY & Aggregate (Slide 14) -->
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-white py-3">
-        <h5 class="card-title mb-0 fw-bold">
-            <i class="bi bi-pie-chart text-primary me-2"></i>Laporan Agregasi Per Kategori (Slide 14 Query)
-        </h5>
+<!-- Laporan 2: Ringkasan Kategori Menggunakan GROUP BY & Aggregate -->
+<div class="card mb-4">
+    <div class="card-header">
+        <div>
+            <div class="fw-bold text-dark">Agregasi Finansial per Kategori</div>
+            <small class="text-muted">Kalkulasi agregat kuantitas unit, rata-rata harga, dan nilai aset kelompok</small>
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
                     <th>Nama Kategori</th>
-                    <th class="text-center">Total Produk (COUNT)</th>
-                    <th class="text-center">Total Kuantitas Stok (SUM)</th>
-                    <th class="text-end">Rata-rata Harga Jual (AVG)</th>
+                    <th class="text-center">Jumlah Item (COUNT)</th>
+                    <th class="text-center">Total Kuantitas (SUM)</th>
+                    <th class="text-end">Rata-rata Harga (AVG)</th>
                     <th class="text-end">Valuasi Kategori</th>
                 </tr>
             </thead>
@@ -224,7 +227,7 @@ require_once __DIR__ . '/../../views/header.php';
                     <tr>
                         <td class="fw-semibold text-dark"><?= e($cRow['category_name']) ?></td>
                         <td class="text-center">
-                            <span class="badge bg-primary-subtle text-primary border">
+                            <span class="badge bg-light text-dark border">
                                 <?= number_format($cRow['total_products']) ?> SKU
                             </span>
                         </td>

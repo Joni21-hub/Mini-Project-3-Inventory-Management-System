@@ -1,6 +1,6 @@
 <?php
 /**
- * Views: Header Layout
+ * Views: Header Layout (Premium Redesign)
  */
 require_once __DIR__ . '/../helpers/auth.php';
 require_once __DIR__ . '/../helpers/escape.php';
@@ -8,151 +8,33 @@ require_once __DIR__ . '/../helpers/flash.php';
 
 $currentUser = current_user();
 $pageTitle = $pageTitle ?? 'Inventory Management System';
+
+// Inisial Nama untuk Avatar Modern
+$initials = 'IH';
+if ($currentUser) {
+    $nameSource = $currentUser['full_name'] ?? $currentUser['username'] ?? 'User';
+    $words = explode(' ', trim($nameSource));
+    if (count($words) >= 2) {
+        $initials = strtoupper(substr($words[0], 0, 1) . substr($words[1], 0, 1));
+    } else {
+        $initials = strtoupper(substr($nameSource, 0, 2));
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= e($pageTitle) ?> - InventarisHub</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <!-- Google Fonts -->
+    <title><?= e($pageTitle) ?> - InventarisHub Enterprise</title>
+    <!-- Google Fonts: Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bs-body-font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-            --brand-primary: #3b82f6;
-            --brand-dark: #0f172a;
-            --sidebar-bg: #1e293b;
-            --sidebar-hover: #334155;
-            --sidebar-active: #2563eb;
-        }
-        body {
-            background-color: #f8fafc;
-            color: #334155;
-        }
-        .sidebar {
-            min-height: 100vh;
-            background-color: var(--sidebar-bg);
-            color: #e2e8f0;
-            width: 260px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 1000;
-            transition: all 0.3s;
-        }
-        .sidebar .brand {
-            padding: 1.25rem 1.5rem;
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .sidebar .nav-link {
-            color: #94a3b8;
-            padding: 0.75rem 1.25rem;
-            display: flex;
-            align-items: center;
-            border-radius: 8px;
-            margin: 0.15rem 0.75rem;
-            font-weight: 500;
-            font-size: 0.92rem;
-            transition: all 0.2s;
-        }
-        .sidebar .nav-link:hover {
-            color: #f8fafc;
-            background-color: var(--sidebar-hover);
-        }
-        .sidebar .nav-link.active {
-            color: #ffffff;
-            background-color: var(--sidebar-active);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-        }
-        .sidebar .nav-link i {
-            font-size: 1.15rem;
-            margin-right: 0.75rem;
-        }
-        .sidebar-heading {
-            text-transform: uppercase;
-            font-size: 0.7rem;
-            letter-spacing: 0.08em;
-            color: #64748b;
-            padding: 1rem 1.5rem 0.4rem;
-            font-weight: 700;
-        }
-        .main-content {
-            margin-left: 260px;
-            padding: 1.75rem 2rem;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        .topbar {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 0.75rem 1.5rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            margin-bottom: 1.75rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .card {
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-        .card-header {
-            background-color: #ffffff;
-            border-bottom: 1px solid #f1f5f9;
-            font-weight: 600;
-            padding: 1rem 1.25rem;
-        }
-        .table thead th {
-            background-color: #f8fafc;
-            color: #475569;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid #e2e8f0;
-            padding: 0.85rem 1rem;
-        }
-        .table tbody td {
-            padding: 0.85rem 1rem;
-            vertical-align: middle;
-            font-size: 0.92rem;
-        }
-        .badge-admin {
-            background-color: #e0e7ff;
-            color: #4338ca;
-            border: 1px solid #c7d2fe;
-        }
-        .badge-staff {
-            background-color: #dcfce7;
-            color: #15803d;
-            border: 1px solid #bbf7d0;
-        }
-        @media (max-width: 991.98px) {
-            .sidebar {
-                margin-left: -260px;
-            }
-            .sidebar.show {
-                margin-left: 0;
-            }
-            .main-content {
-                margin-left: 0;
-                padding: 1rem;
-            }
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Premium Design System CSS -->
+    <link href="<?= base_url('public/assets/css/premium-theme.css') ?>" rel="stylesheet">
 </head>
 <body>
 
@@ -160,51 +42,67 @@ $pageTitle = $pageTitle ?? 'Inventory Management System';
     <!-- Sidebar Navigation -->
     <aside class="sidebar" id="sidebarMenu">
         <div class="brand">
-            <i class="bi bi-boxes text-primary me-2 fs-4"></i>
-            <span>Inventaris<span class="text-primary">Hub</span></span>
+            <div class="brand-badge">IH</div>
+            <div>
+                <div class="brand-title">InventarisHub</div>
+                <span class="brand-subtitle">Enterprise Suite</span>
+            </div>
         </div>
         
-        <div class="py-3">
-            <div class="sidebar-heading">Menu Utama</div>
+        <div class="sidebar-menu-wrapper">
+            <div class="sidebar-heading">Ikhtisar</div>
             <a href="<?= base_url('public/dashboard.php') ?>" class="nav-link <?= strpos($_SERVER['SCRIPT_NAME'], 'dashboard.php') !== false ? 'active' : '' ?>">
-                <i class="bi bi-grid-1x2"></i> Dashboard
+                <span>Dashboard</span>
+                <span class="nav-pill-badge">Live</span>
             </a>
 
-            <div class="sidebar-heading">Master Data</div>
+            <div class="sidebar-heading">Katalog & Persediaan</div>
             <a href="<?= base_url('public/products/index.php') ?>" class="nav-link <?= strpos($_SERVER['SCRIPT_NAME'], '/products/') !== false ? 'active' : '' ?>">
-                <i class="bi bi-box-seam"></i> Produk & Stok
+                <span>Katalog Produk</span>
             </a>
             <?php if (is_admin()): ?>
             <a href="<?= base_url('public/categories/index.php') ?>" class="nav-link <?= strpos($_SERVER['SCRIPT_NAME'], '/categories/') !== false ? 'active' : '' ?>">
-                <i class="bi bi-tags"></i> Kategori
+                <span>Kategori Produk</span>
             </a>
             <a href="<?= base_url('public/suppliers/index.php') ?>" class="nav-link <?= strpos($_SERVER['SCRIPT_NAME'], '/suppliers/') !== false ? 'active' : '' ?>">
-                <i class="bi bi-truck"></i> Supplier
+                <span>Mitra Supplier</span>
             </a>
             <?php endif; ?>
 
-            <div class="sidebar-heading">Transaksi & Mutasi</div>
+            <div class="sidebar-heading">Pergerakan Stok</div>
             <a href="<?= base_url('public/stock/in.php') ?>" class="nav-link <?= strpos($_SERVER['SCRIPT_NAME'], '/stock/in.php') !== false ? 'active' : '' ?>">
-                <i class="bi bi-arrow-down-circle text-success"></i> Barang Masuk
+                <span>Barang Masuk</span>
             </a>
             <a href="<?= base_url('public/stock/out.php') ?>" class="nav-link <?= strpos($_SERVER['SCRIPT_NAME'], '/stock/out.php') !== false ? 'active' : '' ?>">
-                <i class="bi bi-arrow-up-circle text-danger"></i> Barang Keluar
+                <span>Barang Keluar</span>
             </a>
             <a href="<?= base_url('public/stock/history.php') ?>" class="nav-link <?= strpos($_SERVER['SCRIPT_NAME'], '/stock/history.php') !== false ? 'active' : '' ?>">
-                <i class="bi bi-clock-history"></i> Riwayat Mutasi
+                <span>Audit & Riwayat Mutasi</span>
             </a>
 
-            <div class="sidebar-heading">Laporan & Analitik</div>
+            <div class="sidebar-heading">Analitik & Bisnis</div>
             <a href="<?= base_url('public/reports/index.php') ?>" class="nav-link <?= strpos($_SERVER['SCRIPT_NAME'], '/reports/') !== false ? 'active' : '' ?>">
-                <i class="bi bi-file-earmark-bar-graph"></i> Laporan Inventory
+                <span>Laporan & Valuasi</span>
             </a>
 
             <?php if (is_admin()): ?>
-            <div class="sidebar-heading">Pengaturan Sistem</div>
+            <div class="sidebar-heading">Administrasi</div>
             <a href="<?= base_url('public/users/index.php') ?>" class="nav-link <?= strpos($_SERVER['SCRIPT_NAME'], '/users/') !== false ? 'active' : '' ?>">
-                <i class="bi bi-people"></i> Manajemen User
+                <span>Manajemen User</span>
             </a>
             <?php endif; ?>
+        </div>
+
+        <div class="sidebar-user-footer">
+            <div class="user-avatar-circle"><?= e($initials) ?></div>
+            <div class="overflow-hidden">
+                <div class="text-white text-truncate fw-semibold" style="font-size:0.85rem;">
+                    <?= e($currentUser['full_name'] ?? $currentUser['username']) ?>
+                </div>
+                <div class="text-secondary small text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">
+                    <?= e($currentUser['role']) ?>
+                </div>
+            </div>
         </div>
     </aside>
 
@@ -212,43 +110,41 @@ $pageTitle = $pageTitle ?? 'Inventory Management System';
     <main class="main-content">
         <!-- Top Navbar -->
         <header class="topbar">
-            <div class="d-flex align-items-center">
-                <button class="btn btn-sm btn-outline-secondary d-lg-none me-2" id="sidebarToggle" type="button">
-                    <i class="bi bi-list fs-5"></i>
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-sm btn-outline-secondary d-lg-none" id="sidebarToggle" type="button" aria-label="Buka Menu">
+                    Menu
                 </button>
-                <div class="d-none d-sm-block">
-                    <span class="text-muted small">Mini Project 3: Relational Database & Advanced PHP</span>
+                <div class="topbar-breadcrumb d-none d-sm-block">
+                    <span>Sistem Inventaris</span> &nbsp;/&nbsp; <strong><?= e($pageTitle) ?></strong>
                 </div>
             </div>
             
             <div class="d-flex align-items-center gap-3">
-                <div class="text-end d-none d-md-block">
-                    <div class="fw-semibold text-dark"><?= e($currentUser['full_name'] ?? $currentUser['username']) ?></div>
-                    <span class="badge <?= is_admin() ? 'badge-admin' : 'badge-staff' ?> text-uppercase" style="font-size:0.7rem;">
-                        <?= e($currentUser['role']) ?>
-                    </span>
+                <div class="d-none d-md-flex align-items-center gap-2 px-3 py-1 bg-light rounded-pill border">
+                    <span class="stock-dot" style="background-color: #22c55e;"></span>
+                    <span class="small fw-semibold text-secondary">Server Aktif</span>
                 </div>
-                
+
                 <div class="dropdown">
-                    <button class="btn btn-light rounded-circle p-2 dropdown-toggle-split" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-person-circle fs-5 text-secondary"></i>
+                    <button class="btn btn-outline-secondary rounded-pill py-1 px-3 d-flex align-items-center gap-2 border" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="user-avatar-circle" style="width:26px; height:26px; font-size:0.7rem;"><?= e($initials) ?></span>
+                        <span class="fw-semibold small d-none d-sm-inline"><?= e($currentUser['username']) ?></span>
+                        <span class="role-pill <?= is_admin() ? 'role-pill-admin' : 'role-pill-staff' ?>"><?= e(strtoupper($currentUser['role'])) ?></span>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
-                        <li>
-                            <div class="px-3 py-2 border-bottom">
-                                <div class="fw-bold"><?= e($currentUser['full_name'] ?? $currentUser['username']) ?></div>
-                                <small class="text-muted">@<?= e($currentUser['username']) ?> (<?= e($currentUser['role']) ?>)</small>
-                            </div>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-2 p-2" style="border-radius: 14px; min-width: 220px;">
+                        <li class="px-3 py-2 border-bottom mb-1">
+                            <div class="fw-bold text-dark"><?= e($currentUser['full_name'] ?? $currentUser['username']) ?></div>
+                            <small class="text-muted">@<?= e($currentUser['username']) ?></small>
                         </li>
                         <li>
-                            <a class="dropdown-item py-2" href="<?= base_url('public/profile.php') ?>">
-                                <i class="bi bi-person me-2 text-primary"></i> Profil Saya
+                            <a class="dropdown-item py-2 rounded-2" href="<?= base_url('public/profile.php') ?>">
+                                Profil & Pengaturan Akun
                             </a>
                         </li>
-                        <li><hr class="dropdown-divider"></li>
+                        <li><hr class="dropdown-divider my-1"></li>
                         <li>
-                            <a class="dropdown-item py-2 text-danger" href="<?= base_url('public/logout.php') ?>">
-                                <i class="bi bi-box-arrow-right me-2"></i> Logout
+                            <a class="dropdown-item py-2 rounded-2 text-danger fw-semibold" href="<?= base_url('public/logout.php') ?>">
+                                Keluar Sistem (Logout)
                             </a>
                         </li>
                     </ul>
@@ -258,20 +154,12 @@ $pageTitle = $pageTitle ?? 'Inventory Management System';
 
         <!-- Flash Messages -->
         <?php foreach (get_flashes() as $flash): ?>
-            <div class="alert alert-<?= e($flash['type']) ?> alert-dismissible fade show shadow-sm border-0" role="alert">
-                <div class="d-flex align-items-center">
-                    <?php if ($flash['type'] === 'success'): ?>
-                        <i class="bi bi-check-circle-fill me-2 fs-5"></i>
-                    <?php elseif ($flash['type'] === 'danger'): ?>
-                        <i class="bi bi-exclamation-octagon-fill me-2 fs-5"></i>
-                    <?php elseif ($flash['type'] === 'warning'): ?>
-                        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
-                    <?php else: ?>
-                        <i class="bi bi-info-circle-fill me-2 fs-5"></i>
-                    <?php endif; ?>
-                    <div><?= e($flash['message']) ?></div>
+            <div class="alert alert-<?= e($flash['type']) ?> alert-dismissible fade show border-0 shadow-sm mb-4 d-flex align-items-center justify-content-between p-3" style="border-radius: 12px;" role="alert">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="stock-dot" style="background-color: <?= $flash['type'] === 'success' ? '#10b981' : ($flash['type'] === 'danger' ? '#ef4444' : '#f59e0b') ?>;"></span>
+                    <span class="fw-semibold"><?= e($flash['message']) ?></span>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button type="button" class="btn-close ms-2" data-bs-dismiss="alert" aria-label="Tutup"></button>
             </div>
         <?php endforeach; ?>
 

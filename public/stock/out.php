@@ -36,12 +36,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Silakan pilih produk yang akan dikeluarkan.';
         }
 
-        // Validasi syntactic: jumlah harus berupa integer positif (Slide 21)
         $validQty = validate_positive_int($qtyInput, 'Jumlah Keluar (Quantity)', $errors);
 
         if (empty($errors)) {
             try {
-                // DATABASE TRANSACTION (Slide 26 & 27)
                 $pdo->beginTransaction();
 
                 // 1. SELECT stock ... FOR UPDATE (Pessimistic Locking mencegah race condition)
@@ -55,9 +53,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $currentStock = (int)$prod['stock'];
 
-                // 2. Validasi Semantic & Business Rule: Barang keluar tidak boleh melebihi stok tersedia!
+                // 2. Validasi Semantik: Barang keluar tidak boleh melebihi stok tersedia!
                 if ($validQty > $currentStock) {
-                    throw new Exception("Stok tidak mencukupi! Permintaan pengeluaran: {$validQty} unit, namun stok yang tersedia saat ini hanya {$currentStock} unit.");
+                    throw new Exception("Stok tidak mencukupi! Permintaan pengeluaran: {$validQty} unit, namun stok tersedia hanya {$currentStock} unit.");
                 }
 
                 // 3. UPDATE products SET stock = stock - quantity
@@ -83,7 +81,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'notes' => $notes ?: 'Pengeluaran barang gudang (Stock OUT)',
                 ]);
 
-                // COMMIT TRANSACTION
                 $pdo->commit();
 
                 $remainingStock = $currentStock - $validQty;
@@ -102,23 +99,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once __DIR__ . '/../../views/header.php';
 ?>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="d-flex align-items-center">
-            <a href="<?= base_url('public/dashboard.php') ?>" class="btn btn-outline-secondary btn-sm me-3">
-                <i class="bi bi-arrow-left"></i> Dashboard
-            </a>
-            <div>
-                <h3 class="fw-bold text-dark mb-0">Transaksi Barang Keluar (Stock OUT)</h3>
-                <small class="text-muted">Pencatatan pengeluaran barang dengan validasi ketersediaan stok ketat (Pessimistic Lock FOR UPDATE)</small>
-            </div>
-        </div>
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="<?= base_url('public/dashboard.php') ?>" class="btn btn-outline-secondary btn-sm">
+        &larr; Dashboard
+    </a>
+    <div>
+        <h3 class="fw-bold text-dark mb-0" style="letter-spacing: -0.02em;">Pengeluaran Barang (Stock OUT)</h3>
+        <p class="text-muted small mb-0">Pencatatan distribusi barang keluar dengan validasi ketersediaan stok ketat</p>
     </div>
 </div>
 
 <?php if (!empty($errors)): ?>
-    <div class="alert alert-danger border-0 shadow-sm" role="alert">
-        <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-circle me-1"></i> Transaksi Gagal / Ditolak:</h6>
+    <div class="alert alert-danger border-0 shadow-sm mb-4" role="alert">
+        <div class="fw-bold mb-1">Transaksi Gagal / Ditolak:</div>
         <ul class="mb-0 ps-3">
             <?php foreach ($errors as $err): ?>
                 <li><?= e($err) ?></li>
@@ -129,22 +122,23 @@ require_once __DIR__ . '/../../views/header.php';
 
 <div class="row g-4">
     <div class="col-lg-7">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white py-3">
-                <h5 class="card-title mb-0 fw-bold text-danger">
-                    <i class="bi bi-arrow-up-circle text-danger me-2"></i>Formulir Barang Keluar
-                </h5>
+        <div class="card h-100">
+            <div class="card-header">
+                <div>
+                    <span class="fw-bold text-dark">Formulir Barang Keluar</span>
+                </div>
+                <span class="stock-pill stock-pill-danger"><span class="stock-dot"></span>Modul Distribusi</span>
             </div>
             <div class="card-body p-4">
                 <form method="POST" action="out.php" id="stockOutForm">
                     <?= csrf_field() ?>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold text-secondary small">Pilih Produk Yang Dikeluarkan <span class="text-danger">*</span></label>
+                        <label class="form-label">Pilih Produk Yang Dikeluarkan <span class="text-danger">*</span></label>
                         <select name="product_id" id="product_id" class="form-select" required onchange="updateStockOutInfo()">
                             <option value="">-- Pilih Produk Inventaris --</option>
                             <?php foreach ($products as $p): ?>
-                                <option value="<?= $p['id'] ?>" data-stock="<?= $p['stock'] ?>" data-min="<?= $p['minimum_stock'] ?>" data-sku="<?= e($p['sku']) ?>" <?= $productId == $p['id'] ? 'selected' : '' ?>>
+                                <option value="<?= $p['id'] ?>" data-stock="<?= $p['stock'] ?>" data-min="<?= $p['minimum_stock'] ?>" data-sku="<?= e($p['sku']) ?>" data-img="<?= product_image_url($p['sku'], $p['name']) ?>" <?= $productId == $p['id'] ? 'selected' : '' ?>>
                                     [<?= e($p['sku']) ?>] <?= e($p['name']) ?> (Sisa stok: <?= $p['stock'] ?> unit)
                                 </option>
                             <?php endforeach; ?>
@@ -152,37 +146,42 @@ require_once __DIR__ . '/../../views/header.php';
                         <div class="form-text">Perhatikan batas sisa stok sebelum mengajukan pengeluaran.</div>
                     </div>
 
-                    <!-- Panel Interaktif Live Stock Status -->
-                    <div id="stockOutPreviewCard" class="alert alert-light border d-none mb-3 py-2 px-3 small">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span>Sisa Stok Fisik Gudang:</span>
-                            <span id="currentOutStockDisplay" class="fw-bold text-dark">-</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span>Sisa Stok Setelah Transaksi:</span>
-                            <span id="projectedOutStockDisplay" class="fw-bold">-</span>
-                        </div>
-                        <div id="stockWarningAlert" class="mt-2 text-danger fw-semibold d-none">
-                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Peringatan: Jumlah keluar melebihi stok yang tersedia!
+                    <!-- Panel Live Status Stok Fisik -->
+                    <div id="stockOutPreviewCard" class="card border p-3 d-none mb-3 bg-light">
+                        <div class="d-flex align-items-center gap-3">
+                            <img id="previewOutImg" src="" alt="Produk" class="product-avatar-sm" style="width: 50px; height: 50px;">
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span class="text-muted">Sisa Stok Fisik Gudang:</span>
+                                    <strong id="currentOutStockDisplay" class="text-dark">-</strong>
+                                </div>
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-muted">Proyeksi Setelah Transaksi:</span>
+                                    <strong id="projectedOutStockDisplay">-</strong>
+                                </div>
+                                <div id="stockWarningAlert" class="mt-2 text-danger small fw-semibold d-none">
+                                    Peringatan: Jumlah keluar melebihi stok yang tersedia di gudang!
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold text-secondary small">Jumlah Unit Keluar (Quantity) <span class="text-danger">*</span></label>
-                        <input type="number" min="1" step="1" name="quantity" id="outQuantityInput" class="form-control" value="<?= e($quantity) ?>" placeholder="Masukkan jumlah unit (min. 1)" required oninput="calculateProjectedOutStock()">
+                        <label class="form-label">Jumlah Unit Keluar (Quantity) <span class="text-danger">*</span></label>
+                        <input type="number" min="1" step="1" name="quantity" id="outQuantityInput" class="form-control" value="<?= e($quantity) ?>" placeholder="Contoh: 5" required oninput="calculateProjectedOutStock()">
                         <div class="form-text">Maksimal pengeluaran dibatasi sejumlah stok yang ada.</div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-semibold text-secondary small">Keterangan / Keperluan / Divisi Penerima</label>
-                        <textarea name="notes" rows="3" class="form-control" placeholder="Contoh: Distribusi untuk unit operasional lantai 2 / Penjualan DO-401"><?= e($notes) ?></textarea>
+                        <label class="form-label">Keterangan / Divisi Penerima / No. DO</label>
+                        <textarea name="notes" rows="3" class="form-control" placeholder="Contoh: Distribusi tim operasional lantai 2 / Penjualan DO-401"><?= e($notes) ?></textarea>
                     </div>
 
-                    <div class="d-flex justify-content-between align-items-center">
-                        <button type="submit" id="btnSubmitOut" class="btn btn-danger px-4 py-2 fw-semibold">
-                            <i class="bi bi-check2-circle me-1"></i> Simpan Transaksi Barang Keluar
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <button type="submit" id="btnSubmitOut" class="btn btn-danger px-4 py-2">
+                            Simpan Transaksi Keluar
                         </button>
-                        <a href="history.php" class="text-decoration-none text-muted small">Lihat Riwayat Mutasi &raquo;</a>
+                        <a href="history.php" class="text-decoration-none text-muted small">Lihat Riwayat &rarr;</a>
                     </div>
                 </form>
             </div>
@@ -191,39 +190,34 @@ require_once __DIR__ . '/../../views/header.php';
 
     <!-- Panel Informasi Aturan Bisnis -->
     <div class="col-lg-5">
-        <div class="card shadow-sm border-start border-danger border-4 h-100">
+        <div class="card h-100">
+            <div class="card-header">
+                <span class="fw-bold text-dark">Logika Bisnis & Pengamanan Stok</span>
+            </div>
             <div class="card-body p-4">
-                <h5 class="fw-bold text-dark mb-3"><i class="bi bi-shield-lock text-danger me-2"></i>Business Logic: Barang Keluar (Slide 26)</h5>
-                <ul class="list-unstyled small text-muted d-flex flex-column gap-2 mb-4">
-                    <li class="d-flex align-items-start">
-                        <i class="bi bi-check-circle-fill text-danger me-2 mt-1"></i>
-                        <span><strong>BEGIN TRANSACTION</strong>: Mengawali transaksi database atomik.</span>
-                    </li>
-                    <li class="d-flex align-items-start">
-                        <i class="bi bi-check-circle-fill text-danger me-2 mt-1"></i>
-                        <span><code>SELECT stock ... FOR UPDATE</code>: Mengunci baris produk guna mencegah race-condition.</span>
-                    </li>
-                    <li class="d-flex align-items-start">
-                        <i class="bi bi-check-circle-fill text-danger me-2 mt-1"></i>
-                        <span><strong>Validasi Semantik:</strong> <code>quantity &le; stock</code>. Menjamin stok <em>tidak pernah negatif</em>.</span>
-                    </li>
-                    <li class="d-flex align-items-start">
-                        <i class="bi bi-check-circle-fill text-danger me-2 mt-1"></i>
-                        <span><code>UPDATE products SET stock = stock - quantity</code>.</span>
-                    </li>
-                    <li class="d-flex align-items-start">
-                        <i class="bi bi-check-circle-fill text-danger me-2 mt-1"></i>
-                        <span><code>INSERT stock_movements (type = 'OUT')</code> mencatat waktu & petugas.</span>
-                    </li>
-                    <li class="d-flex align-items-start">
-                        <i class="bi bi-check-circle-fill text-danger me-2 mt-1"></i>
-                        <span><strong>COMMIT / ROLLBACK</strong>: Konsistensi data 100% terjaga jika terjadi galat.</span>
-                    </li>
-                </ul>
+                <div class="d-flex flex-column gap-3 small text-muted mb-4">
+                    <div class="d-flex gap-2">
+                        <span class="stock-dot mt-1" style="background-color: #ef4444;"></span>
+                        <div><strong>Kunci Baris (Row Lock):</strong> Kueri <code>SELECT ... FOR UPDATE</code> mengunci baris produk guna mencegah inkonsistensi.</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <span class="stock-dot mt-1" style="background-color: #ef4444;"></span>
+                        <div><strong>Validasi Semantik:</strong> <code>quantity &le; stock</code>. Menjamin stok gudang tidak pernah menjadi negatif.</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <span class="stock-dot mt-1" style="background-color: #ef4444;"></span>
+                        <div><strong>Audit Trail Terintegrasi:</strong> Riwayat mutasi tipe <code>OUT</code> dicatat lengkap dengan timestamp transaksi.</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <span class="stock-dot mt-1" style="background-color: #ef4444;"></span>
+                        <div><strong>Transaksi Database:</strong> Jaminan atomik (Semua tersimpan atau tidak sama sekali).</div>
+                    </div>
+                </div>
 
                 <div class="p-3 bg-light rounded-3 small">
-                    <strong>Petugas Aktif:</strong><br>
-                    <?= e(current_user()['full_name'] ?: current_user()['username']) ?> (Role: <?= strtoupper(current_user()['role']) ?>)
+                    <div class="text-muted">Petugas Bertanggung Jawab:</div>
+                    <strong class="text-dark"><?= e(current_user()['full_name'] ?: current_user()['username']) ?></strong>
+                    <span class="role-pill <?= is_admin() ? 'role-pill-admin' : 'role-pill-staff' ?> ms-2"><?= strtoupper(current_user()['role']) ?></span>
                 </div>
             </div>
         </div>
@@ -236,11 +230,14 @@ function updateStockOutInfo() {
     const selectedOption = select.options[select.selectedIndex];
     const previewCard = document.getElementById('stockOutPreviewCard');
     const currentStockDisplay = document.getElementById('currentOutStockDisplay');
+    const previewImg = document.getElementById('previewOutImg');
     const qtyInput = document.getElementById('outQuantityInput');
 
     if (select.value) {
         const stock = parseInt(selectedOption.getAttribute('data-stock') || '0', 10);
+        const imgSrc = selectedOption.getAttribute('data-img') || '';
         currentStockDisplay.textContent = stock + ' unit';
+        previewImg.src = imgSrc;
         qtyInput.max = stock > 0 ? stock : 0;
         previewCard.classList.remove('d-none');
         calculateProjectedOutStock();
@@ -263,13 +260,13 @@ function calculateProjectedOutStock() {
         const diff = stock - qty;
 
         if (qty > stock) {
-            projectedDisplay.className = 'fw-bold text-danger';
-            projectedDisplay.textContent = diff + ' unit (Defisit/Tidak Cukup)';
+            projectedDisplay.className = 'text-danger fw-bold';
+            projectedDisplay.textContent = diff + ' unit (Defisit / Stok Tidak Cukup)';
             warningAlert.classList.remove('d-none');
             submitBtn.disabled = true;
         } else {
-            projectedDisplay.className = 'fw-bold text-success';
-            projectedDisplay.textContent = diff + ' unit sisa';
+            projectedDisplay.className = 'text-success fw-bold';
+            projectedDisplay.textContent = diff + ' unit tersisa';
             warningAlert.classList.add('d-none');
             submitBtn.disabled = false;
         }

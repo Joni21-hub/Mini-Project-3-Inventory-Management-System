@@ -1,5 +1,5 @@
 <?php
-$pageTitle = 'Riwayat Mutasi Stok';
+$pageTitle = 'Riwayat Audit Mutasi Stok';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/auth.php';
 require_once __DIR__ . '/../../helpers/escape.php';
@@ -95,30 +95,30 @@ require_once __DIR__ . '/../../views/header.php';
 
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
     <div>
-        <h3 class="fw-bold text-dark mb-1"><i class="bi bi-clock-history text-primary me-2"></i>Riwayat Audit Mutasi Stok</h3>
-        <p class="text-muted small mb-0">Log seluruh transaksi barang masuk (IN) dan barang keluar (OUT) secara kronologis.</p>
+        <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.02em;">Riwayat Audit Mutasi Stok</h3>
+        <p class="text-muted small mb-0">Catatan kronologis seluruh arus transaksi barang masuk dan barang keluar.</p>
     </div>
     <div class="d-flex gap-2 mt-3 mt-md-0">
         <a href="in.php" class="btn btn-success btn-sm">
-            <i class="bi bi-arrow-down-circle me-1"></i> Input Barang Masuk
+            Barang Masuk
         </a>
         <a href="out.php" class="btn btn-danger btn-sm">
-            <i class="bi bi-arrow-up-circle me-1"></i> Input Barang Keluar
+            Barang Keluar
         </a>
     </div>
 </div>
 
 <!-- Form Filter & Pencarian -->
-<div class="card shadow-sm mb-4">
+<div class="card mb-4">
     <div class="card-body p-3">
         <form method="GET" action="history.php" class="row g-2 align-items-end">
             <div class="col-md-3">
-                <label class="form-label small fw-semibold text-secondary mb-1">Cari Produk / Catatan</label>
+                <label class="form-label small text-secondary mb-1">Cari Produk / Catatan</label>
                 <input type="text" name="search" class="form-control" placeholder="Kata kunci..." value="<?= e($search) ?>">
             </div>
 
             <div class="col-md-2">
-                <label class="form-label small fw-semibold text-secondary mb-1">Tipe Mutasi</label>
+                <label class="form-label small text-secondary mb-1">Tipe Mutasi</label>
                 <select name="type" class="form-select">
                     <option value="">Semua (IN & OUT)</option>
                     <option value="IN" <?= $typeFilter === 'IN' ? 'selected' : '' ?>>Masuk (IN)</option>
@@ -127,7 +127,7 @@ require_once __DIR__ . '/../../views/header.php';
             </div>
 
             <div class="col-md-3">
-                <label class="form-label small fw-semibold text-secondary mb-1">Filter Produk</label>
+                <label class="form-label small text-secondary mb-1">Filter Produk</label>
                 <select name="product_id" class="form-select">
                     <option value="">Semua Produk</option>
                     <?php foreach ($productsList as $p): ?>
@@ -139,16 +139,16 @@ require_once __DIR__ . '/../../views/header.php';
             </div>
 
             <div class="col-md-2">
-                <label class="form-label small fw-semibold text-secondary mb-1">Mulai Tanggal</label>
+                <label class="form-label small text-secondary mb-1">Mulai Tanggal</label>
                 <input type="date" name="start_date" class="form-control" value="<?= e($startDate) ?>">
             </div>
 
             <div class="col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-primary flex-grow-1">
-                    <i class="bi bi-filter me-1"></i> Filter
+                    Filter
                 </button>
                 <a href="history.php" class="btn btn-outline-secondary" title="Reset">
-                    <i class="bi bi-arrow-counterclockwise"></i>
+                    Reset
                 </a>
             </div>
         </form>
@@ -156,9 +156,9 @@ require_once __DIR__ . '/../../views/header.php';
 </div>
 
 <!-- Tabel Log Mutasi -->
-<div class="card shadow-sm">
-    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-        <span class="fw-semibold text-muted small">Menampilkan <?= count($movements) ?> dari <?= $totalRows ?> total catatan mutasi</span>
+<div class="card mb-4">
+    <div class="card-header">
+        <span class="text-muted small">Menampilkan <strong><?= count($movements) ?></strong> dari <strong><?= $totalRows ?></strong> total catatan transaksi</span>
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -168,8 +168,8 @@ require_once __DIR__ . '/../../views/header.php';
                     <th class="text-center" style="width: 110px;">Jenis</th>
                     <th>Nama Produk & SKU</th>
                     <th>Kategori</th>
-                    <th class="text-center" style="width: 100px;">Jumlah</th>
-                    <th>Keterangan / Alasan</th>
+                    <th class="text-center" style="width: 110px;">Jumlah</th>
+                    <th>Keterangan / Keperluan</th>
                     <th>Petugas Input</th>
                 </tr>
             </thead>
@@ -177,7 +177,6 @@ require_once __DIR__ . '/../../views/header.php';
                 <?php if (empty($movements)): ?>
                     <tr>
                         <td colspan="7" class="text-center py-5 text-muted">
-                            <i class="bi bi-file-earmark-x fs-1 d-block mb-2 text-secondary"></i>
                             Tidak ada riwayat mutasi yang cocok dengan kriteria pencarian.
                         </td>
                     </tr>
@@ -189,20 +188,21 @@ require_once __DIR__ . '/../../views/header.php';
                             </td>
                             <td class="text-center">
                                 <?php if ($m['type'] === 'IN'): ?>
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                        <i class="bi bi-arrow-down-circle me-1"></i>MASUK
-                                    </span>
+                                    <span class="movement-pill-in">MASUK</span>
                                 <?php else: ?>
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
-                                        <i class="bi bi-arrow-up-circle me-1"></i>KELUAR
-                                    </span>
+                                    <span class="movement-pill-out">KELUAR</span>
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <a href="<?= base_url('public/products/view.php?id=' . $m['product_id']) ?>" class="fw-semibold text-dark text-decoration-none">
-                                    <?= e($m['product_name']) ?>
-                                </a><br>
-                                <small class="text-muted"><code><?= e($m['sku']) ?></code></small>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="<?= product_image_url($m['sku'], $m['product_name']) ?>" alt="<?= e($m['product_name']) ?>" class="product-avatar-sm" style="width: 38px; height: 38px;">
+                                    <div>
+                                        <a href="<?= base_url('public/products/view.php?id=' . $m['product_id']) ?>" class="fw-semibold text-dark text-decoration-none">
+                                            <?= e($m['product_name']) ?>
+                                        </a><br>
+                                        <small class="text-muted font-monospace"><?= e($m['sku']) ?></small>
+                                    </div>
+                                </div>
                             </td>
                             <td>
                                 <span class="badge bg-light text-secondary border"><?= e($m['category_name']) ?></span>
@@ -215,7 +215,7 @@ require_once __DIR__ . '/../../views/header.php';
                             </td>
                             <td>
                                 <div class="fw-semibold small text-dark"><?= e($m['full_name'] ?: $m['username']) ?></div>
-                                <span class="badge <?= $m['role'] === 'admin' ? 'badge-admin' : 'badge-staff' ?>" style="font-size: 0.68rem;">
+                                <span class="role-pill <?= $m['role'] === 'admin' ? 'role-pill-admin' : 'role-pill-staff' ?>">
                                     <?= strtoupper($m['role']) ?>
                                 </span>
                             </td>
@@ -228,7 +228,7 @@ require_once __DIR__ . '/../../views/header.php';
 
     <!-- Pagination -->
     <?php if ($totalPages > 1): ?>
-        <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
+        <div class="card-footer d-flex justify-content-between align-items-center">
             <small class="text-muted">Halaman <?= $page ?> dari <?= $totalPages ?></small>
             <nav>
                 <ul class="pagination pagination-sm mb-0">

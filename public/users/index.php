@@ -1,11 +1,10 @@
 <?php
-$pageTitle = 'Manajemen Pengguna & Otorisasi';
+$pageTitle = 'Manajemen Pengguna & Akses';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/auth.php';
 require_once __DIR__ . '/../../helpers/escape.php';
 require_once __DIR__ . '/../../helpers/flash.php';
 
-// Hak akses khusus Admin (Slide 24 & 33)
 require_role('admin');
 
 // Query Users dengan JOIN 1:1 user_profiles & agregasi riwayat mutasi
@@ -26,51 +25,62 @@ require_once __DIR__ . '/../../views/header.php';
 
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
     <div>
-        <h3 class="fw-bold text-dark mb-1"><i class="bi bi-people text-primary me-2"></i>Manajemen User & Hak Akses (RBAC)</h3>
-        <p class="text-muted small mb-0">Kelola akun pengguna, profil (Relasi One-to-One), dan otorisasi role Admin/Staff.</p>
+        <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.02em;">Manajemen Pengguna (RBAC)</h3>
+        <p class="text-muted small mb-0">Kelola akun, profil One-to-One, dan hak otorisasi role Admin/Staff.</p>
     </div>
     <div class="mt-3 mt-md-0">
         <a href="create.php" class="btn btn-primary">
-            <i class="bi bi-person-plus me-1"></i> Tambah Pengguna Baru
+            Tambah Pengguna Baru
         </a>
     </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-header bg-white py-3">
-        <span class="fw-semibold text-muted small">Daftar Akun Pengguna Terdaftar</span>
+<div class="card mb-4">
+    <div class="card-header">
+        <span class="text-muted small">Daftar Akun Pengguna Terdaftar (<?= count($users) ?> user)</span>
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
                     <th style="width: 60px;">#</th>
-                    <th>Username & Nama Lengkap</th>
-                    <th class="text-center">Role / Otorisasi</th>
-                    <th>Kontak (Telepon)</th>
-                    <th class="text-center">Total Transaksi Dicatat</th>
+                    <th>Pengguna & Profil</th>
+                    <th class="text-center">Role Akses</th>
+                    <th>Kontak Telepon</th>
+                    <th class="text-center">Transaksi Tercatat</th>
                     <th>Terdaftar Sejak</th>
-                    <th class="text-end" style="width: 140px;">Aksi</th>
+                    <th class="text-end" style="width: 150px;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($users as $u): ?>
+                    <?php
+                        $uName = $u['full_name'] ?: $u['username'];
+                        $parts = explode(' ', trim($uName));
+                        $uInit = strtoupper(substr($parts[0], 0, 1) . (isset($parts[1]) ? substr($parts[1], 0, 1) : ''));
+                    ?>
                     <tr>
                         <td class="text-muted small"><?= $u['id'] ?></td>
                         <td>
-                            <div class="fw-bold text-dark"><?= e($u['full_name'] ?: $u['username']) ?></div>
-                            <small class="text-muted">Username: <code>@<?= e($u['username']) ?></code></small>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="user-avatar-circle" style="width: 34px; height: 34px; font-size: 0.78rem;">
+                                    <?= e($uInit) ?>
+                                </span>
+                                <div>
+                                    <div class="fw-bold text-dark"><?= e($uName) ?></div>
+                                    <small class="text-muted font-monospace">@<?= e($u['username']) ?></small>
+                                </div>
+                            </div>
                         </td>
                         <td class="text-center">
-                            <span class="badge <?= $u['role'] === 'admin' ? 'badge-admin' : 'badge-staff' ?> text-uppercase">
-                                <i class="bi <?= $u['role'] === 'admin' ? 'bi-shield-check' : 'bi-person' ?> me-1"></i>
-                                <?= e($u['role']) ?>
+                            <span class="role-pill <?= $u['role'] === 'admin' ? 'role-pill-admin' : 'role-pill-staff' ?>">
+                                <?= e(strtoupper($u['role'])) ?>
                             </span>
                         </td>
                         <td><?= e($u['phone'] ?: '-') ?></td>
                         <td class="text-center">
-                            <span class="badge bg-light text-secondary border">
-                                <?= number_format($u['total_logged_transactions']) ?> Transaksi
+                            <span class="badge bg-light text-dark border">
+                                <?= number_format($u['total_logged_transactions']) ?> Log
                             </span>
                         </td>
                         <td>
@@ -78,16 +88,16 @@ require_once __DIR__ . '/../../views/header.php';
                         </td>
                         <td class="text-end">
                             <div class="btn-group btn-group-sm">
-                                <a href="edit.php?id=<?= $u['id'] ?>" class="btn btn-outline-primary" title="Edit User">
-                                    <i class="bi bi-pencil"></i>
+                                <a href="edit.php?id=<?= $u['id'] ?>" class="btn btn-outline-primary">
+                                    Edit
                                 </a>
                                 <?php if ($u['id'] !== current_user()['id']): ?>
-                                <a href="delete.php?id=<?= $u['id'] ?>" class="btn btn-outline-danger" title="Hapus User" onclick="return confirm('Apakah Anda yakin ingin menghapus akun ini?');">
-                                    <i class="bi bi-trash"></i>
+                                <a href="delete.php?id=<?= $u['id'] ?>" class="btn btn-outline-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus akun ini?');">
+                                    Hapus
                                 </a>
                                 <?php else: ?>
-                                <button class="btn btn-outline-secondary" disabled title="Tidak dapat menghapus akun sendiri">
-                                    <i class="bi bi-lock"></i>
+                                <button class="btn btn-outline-secondary" disabled title="Akun aktif Anda">
+                                    Aktif
                                 </button>
                                 <?php endif; ?>
                             </div>

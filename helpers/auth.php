@@ -75,22 +75,23 @@ function require_role($roles): void {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>403 - Akses Dilarang</title>
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+            <link href="<?= base_url('public/assets/css/premium-theme.css') ?>" rel="stylesheet">
         </head>
         <body class="bg-light d-flex align-items-center min-vh-100">
             <div class="container text-center">
-                <div class="card shadow-sm border-0 mx-auto" style="max-width: 500px;">
-                    <div class="card-body p-5">
-                        <div class="text-danger mb-3">
-                            <i class="bi bi-shield-slash" style="font-size: 4rem;"></i>
+                <div class="card shadow-sm border mx-auto p-4" style="max-width: 480px; border-radius: 20px;">
+                    <div class="card-body p-4">
+                        <div class="d-inline-flex align-items-center gap-2 mb-3 px-3 py-1 rounded-pill bg-danger bg-opacity-10 text-danger small border border-danger border-opacity-20">
+                            <span class="stock-dot" style="background-color: #ef4444;"></span>
+                            <span class="fw-bold">403 Akses Dibatasi</span>
                         </div>
-                        <h2 class="h4 fw-bold text-dark">403 - Akses Dilarang (Forbidden)</h2>
-                        <p class="text-muted mt-2">
-                            Maaf, akun Anda dengan role <strong><?= htmlspecialchars(strtoupper($current)) ?></strong> tidak memiliki izin untuk mengakses halaman ini. Halaman ini khusus untuk <strong><?= htmlspecialchars(strtoupper(implode(', ', $allowed))) ?></strong>.
+                        <h3 class="fw-bold text-dark mb-2" style="letter-spacing: -0.02em;">Otorisasi Ditolak</h3>
+                        <p class="text-muted small mt-2 mb-4 leading-relaxed">
+                            Akun Anda saat ini berstatus <strong><?= htmlspecialchars(strtoupper($current)) ?></strong> dan tidak memiliki hak akses modul ini. Halaman ini diproteksi khusus untuk role <strong><?= htmlspecialchars(strtoupper(implode(', ', $allowed))) ?></strong>.
                         </p>
-                        <div class="mt-4">
+                        <div>
                             <a href="<?= base_url('public/dashboard.php') ?>" class="btn btn-primary px-4">
-                                <i class="bi bi-house-door me-1"></i> Kembali ke Dashboard
+                                Kembali ke Dashboard
                             </a>
                         </div>
                     </div>
